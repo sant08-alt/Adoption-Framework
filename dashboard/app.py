@@ -187,18 +187,20 @@ def portfolio_view(health, sku, feature, coverage):
 
     # --- Revenue impact overlay (assumed pricing; never a CVRS input) ----
     st.caption("**Revenue impact** (assumed list pricing — not part of the score)")
-    at_risk = latest["health_tier"].isin(["At Risk", "Shelfware"])
     committed_arr = latest["committed_arr"].sum()
-    arr_at_risk = latest.loc[at_risk, "committed_arr"].sum()
+    shelfware_arr = latest.loc[latest["health_tier"] == "Shelfware", "committed_arr"].sum()
+    atrisk_arr = latest.loc[latest["health_tier"] == "At Risk", "committed_arr"].sum()
     expansion_pipeline = latest.loc[latest["expansion_flag"], "overage_arr_run_rate"].sum()
-    r1, r2, r3, r4 = st.columns(4)
-    r1.metric("Committed ARR", f"${committed_arr / 1e6:.1f}M")
-    r2.metric("ARR at risk", f"${arr_at_risk / 1e6:.1f}M",
-              f"{arr_at_risk / committed_arr:.0%} of book" if committed_arr else None,
-              delta_color="inverse")
-    r3.metric("Expansion pipeline", f"${expansion_pipeline / 1e6:.1f}M",
-              help="Annualized run-rate of current billable overage on Expansion Signal accounts")
-    r4.metric("Avg ARR / customer", f"${committed_arr / max(len(latest), 1) / 1e6:.2f}M")
+    of_book = lambda v: f"{v / committed_arr:.0%} of book" if committed_arr else ""
+    rev = [
+        ("Committed ARR", f"${committed_arr / 1e6:.1f}M", "", None),
+        ("Shelfware ARR", f"${shelfware_arr / 1e6:.1f}M", of_book(shelfware_arr), TIER_COLORS["Shelfware"]),
+        ("At Risk ARR", f"${atrisk_arr / 1e6:.1f}M", of_book(atrisk_arr), TIER_COLORS["At Risk"]),
+        ("Expansion pipeline", f"${expansion_pipeline / 1e6:.1f}M", "annualized overage run-rate", "#0B8F72"),
+        ("Avg ARR / customer", f"${committed_arr / max(len(latest), 1) / 1e6:.2f}M", "", None),
+    ]
+    for col, (label, value, sub, accent) in zip(st.columns(5), rev):
+        _card(col, label, value, sub, accent=accent)
 
     left, right = st.columns([2, 1])
     with left:
