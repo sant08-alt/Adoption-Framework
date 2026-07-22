@@ -65,6 +65,15 @@ cohorts so downstream metrics can be validated against known ground truth.
 | product_id | STRING FK | |
 | first_adoption_date | DATE | Daily date of first product use = `start_date + deployment_lag`, always ≥ the contract start. **Deployment lag** (normal cohort): ~70% adopt within 20 days, ~20% in 21–55 days, ~10% in 56–90 days; other consuming cohorts adopt within ~12 days; spike-drop adopts immediately. Shelfware customers get **no row** (never adopt). Consumption is zeroed before the adoption month, so the daily adoption date and monthly consumption stay consistent — this is what makes day-level TTFV meaningful |
 
+### 6b. `consumption_daily` (daily grain, in-flight current month; ~6,600 rows)
+Powers the month-to-date / projected CVRS view.
+| Column | Type | Rule |
+|--------|------|------|
+| cust_id | STRING FK | |
+| entitlement_id | STRING FK | |
+| usage_date | DATE | Daily rows for the **current in-flight month** (Jul 2026) up to a fixed, seeded **`AS_OF_DATE = 2026-07-15`** (~48% elapsed; in production this is "today") |
+| consumed_units | INT | Each entitlement's daily pace is anchored to its own trailing-3-month daily rate, then scaled by a per-customer **momentum factor**: ~10% of active customers decelerating this month (×0.2–0.5), ~5% accelerating (×1.3–1.6), the rest steady. Shelfware customers get no rows |
+
 ### 7. `feature_adoption` (~15,000+ rows)
 | Column | Type | Rule |
 |--------|------|------|

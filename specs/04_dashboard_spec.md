@@ -33,6 +33,16 @@
   signals. The expansion table is sorted by months-in-overage then peak raw utilization,
   descending (the "hand this to sales" list).
 
+### 1b. Live · Month-to-Date (the in-flight view)
+- As-of banner (date + % of month elapsed + "provisional, not used for tiers/comp").
+- KPI row: projected avg CVRS, # decelerating (momentum < −30%), # accelerating,
+  # projected < 40.
+- **Decelerating call-list:** accounts sorted by momentum — those pacing furthest below
+  their own baseline, with projected CVRS, last final CVRS, and the delta. The "act
+  today" list.
+- Movers scatter: projected CVRS vs last month's final CVRS, colored by momentum
+  (below the diagonal = trending down).
+
 ### 2. Customer Drill-Down (the CSM view)
 - Customer selector →
   - CVRS line over 12 months with health-tier band coloring.

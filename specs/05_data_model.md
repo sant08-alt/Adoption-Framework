@@ -16,6 +16,7 @@ rules see `02_data_spec.md`; for layer/orchestration logic see `03_pipeline_spec
 | Raw | `features` | table | feature | 2,276 |
 | Raw | `entitlements` | table | contract line | 507 |
 | Raw | `consumption` | table | entitlement × month | 5,254 |
+| Raw | `consumption_daily` | table | entitlement × day (in-flight month) | ~6,600 |
 | Raw | `product_adoption` | table | customer × product | ~451 |
 | Raw | `feature_adoption` | table | customer × feature × month | 11,611 |
 | Raw | `month_spine` | table | month | 12 |
@@ -27,6 +28,7 @@ rules see `02_data_spec.md`; for layer/orchestration logic see `03_pipeline_spec
 | Mart | `mart_customer_health` | table | customer × month | 1,151 |
 | Mart | `mart_sku_adoption` | table | customer × product × month | 5,741 |
 | Mart | `mart_feature_adoption` | table | feature × month | 16,923 |
+| Mart | `mart_customer_health_mtd` | table | customer (as-of snapshot) | 100 |
 
 Staging is deliberately **views** (zero storage, always fresh); intermediates and
 marts are **tables** (materialized once per run, so the dashboard reads are cheap).
@@ -157,6 +159,23 @@ Same customer dimensions, plus:
 | `overage_mrr` | FLOAT64 | `max(consumed − entitled, 0) × unit_price` — billable over-consumption |
 
 Current distribution: Deployed 5,038 · Not Deployed 541 · Dormant 162.
+
+### `mart_customer_health_mtd` — customer (in-flight as-of snapshot)
+
+| Column | Type | Definition |
+|---|---|---|
+| `cust_id` / `cust_name` / `region` / `customer_segment` | — | Identity & dimensions |
+| `as_of_date` | DATE | The in-flight cutoff (2026-07-15) |
+| `day_of_month` / `elapsed_fraction` / `pct_month_elapsed` | INT/FLOAT | How far into the month |
+| `entitled_units` | INT64 | Entitled capacity active in the current month |
+| `consumed_mtd` | INT64 | Consumption so far this month |
+| `mtd_utilization` | FLOAT64 | Pace-adjusted, capped: `consumed_mtd / (entitled × elapsed_fraction)` |
+| `projected_util_run_rate` | FLOAT64 | Uncapped run-rate: where full-month utilization lands if pace holds |
+| `momentum` | FLOAT64 | Current daily pace vs the account's trailing-3-month daily pace; NULL if no history |
+| `feature_depth` / `breadth` / `consistency` | FLOAT64 | Baselines carried from the last completed month |
+| `last_final_cvrs` / `last_tier` | FLOAT64/STRING | Last month's final score and tier (for the delta) |
+| `projected_cvrs` | FLOAT64 | `100 × (0.4·mtd_utilization + 0.3·feature_depth + 0.2·consistency + 0.1·breadth)` |
+| `low_confidence` | BOOL | TRUE for the first ~20% of the month |
 
 ### `mart_feature_adoption` — feature × month
 

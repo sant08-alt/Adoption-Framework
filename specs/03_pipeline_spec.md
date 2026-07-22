@@ -63,6 +63,13 @@ One view per raw table: explicit casts, trimmed strings, deduplication on PK.
 
 Full column-level definitions for every table: see `05_data_model.md`.
 
+**`33_mart_customer_health_mtd`** — grain: customer (single as-of snapshot)
+- In-flight, projected CVRS for the current month. `mtd_utilization` is pace-adjusted
+  by `elapsed_fraction`; depth/breadth/consistency ride the last completed month
+  (`mart_customer_health`, Jun 2026). `projected_cvrs` uses the same 0.4/0.3/0.2/0.1
+  weights. `momentum` = current daily pace vs the account's trailing-3-month daily pace.
+  `low_confidence` flags the first ~20% of the month. Provisional — never used for tiers.
+
 **`32_mart_feature_adoption`** — grain: feature × month
 - `adoption_rate = customers_active_on_feature / customers_eligible`,
   median days-to-adopt.

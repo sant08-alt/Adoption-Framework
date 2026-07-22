@@ -174,6 +174,29 @@ reconstructs exactly from its four inputs.
 Pricing here is **assumed list pricing** (per-platform, in the generator). Production
 would join real CPQ/pricing data; the pipeline structure is unchanged.
 
+### Month-to-date (projected) CVRS — the in-flight view
+
+Leaders can't wait for month end to see what's happening. The **monthly CVRS stays the
+system of record**; a **projected, pace-adjusted CVRS** runs alongside it as an
+early-warning overlay (provisional — never used for tier assignment or compensation).
+
+- **Pacing (the key fix):** raw month-to-date utilization reads artificially low
+  mid-month (only part of the month has elapsed), which would flag every account as
+  At-Risk. So utilization is normalized by `elapsed_fraction = day_of_month / days_in_month`,
+  comparing *actual pace to expected pace*. A steady account projects ≈ its normal score;
+  an account gone quiet this month drops immediately.
+- **Which components are live:** only utilization. Feature depth, breadth, and
+  consistency ride the last completed month's baselines (they move slowly); depth going
+  live is a v2.
+- **Momentum:** the sharper leading signal — this month's daily pace vs the account's own
+  trailing-3-month daily pace. A customer running well below its own baseline is the
+  "call today" list, often *before* the projected score moves much.
+- **Confidence:** the projection is suppressed/flagged (`low_confidence`) for the first
+  ~20% of the month, when a run-rate is still noise.
+- **Data cost:** requires a **daily** consumption feed (`consumption_daily`) rather than
+  monthly batch — the only new plumbing. A v2 refinement paces against each account's
+  historical intra-month shape rather than a straight line.
+
 ## 5. Edge-Case Handling (by design, not exception)
 
 These are known realities of enterprise B2B data. The metric definitions above handle
