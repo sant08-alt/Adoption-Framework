@@ -10,3 +10,4 @@ data_generation/output/
 dashboard/snapshots/
 *.parquet
 .streamlit/secrets.toml
+presentation/*.pptx
