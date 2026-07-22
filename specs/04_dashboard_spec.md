@@ -26,7 +26,8 @@
   % Expansion — all as percentages. Each percentage is a link that scrolls to the
   corresponding customer table below.
 - **Revenue impact row** (assumed pricing, never a CVRS input): Committed ARR,
-  ARR-at-risk, expansion pipeline, avg ARR/customer.
+  Shelfware ARR and At Risk ARR (split, each with its % of book), expansion pipeline,
+  avg ARR/customer.
 - **Unsold SKUs** snapshot card: catalog products never sold (respects the platform
   filter).
 - CVRS distribution trend (stacked health-tier counts over the selected period) +
