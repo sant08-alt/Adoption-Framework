@@ -19,12 +19,13 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).parent.parent
 SNAPSHOT_DIR = Path(__file__).parent / "snapshots"
 MARTS = ["mart_customer_health", "mart_sku_adoption", "mart_feature_adoption",
-         "mart_customer_health_mtd"]
+         "mart_customer_health_mtd", "mart_sku_coverage"]
 MART_DATE_COLS = {
     "mart_customer_health": ["month_start"],
     "mart_sku_adoption": ["month_start"],
     "mart_feature_adoption": ["month_start"],
     "mart_customer_health_mtd": ["as_of_date"],
+    "mart_sku_coverage": [],
 }
 
 TIER_COLORS = {
@@ -100,7 +101,7 @@ def _card(col, label, value, sub="", accent=None, anchor=None):
     col.markdown(f'<a class="kpi-link" {href}>{inner}</a>', unsafe_allow_html=True)
 
 
-def portfolio_view(health, sku, feature):
+def portfolio_view(health, sku, feature, coverage):
     st.title("Portfolio Adoption Health")
     st.markdown(KPI_CSS, unsafe_allow_html=True)
 
@@ -161,6 +162,12 @@ def portfolio_view(health, sku, feature):
     else:
         cards.append(("Healthiest platform", plat.index[0],
                       f"{plat['score'].iloc[0]:.0%} avg adoption"))
+
+    # Unsold SKUs: catalog products nobody has bought (respects the platform filter).
+    cov = coverage[coverage["product_platform"].isin(platforms)] if platforms else coverage
+    catalog, unsold = int(cov["catalog_skus"].sum()), int(cov["unsold_skus"].sum())
+    cards.append(("Unsold SKUs", f"{unsold} / {catalog}",
+                  f"{unsold / catalog:.0%} of catalog never sold" if catalog else ""))
 
     for col, (label, value, sub) in zip(st.columns(len(cards)), cards):
         _card(col, label, value, sub)
@@ -307,8 +314,28 @@ def customer_view(health, sku):
                  use_container_width=True, hide_index=True)
 
 
-def product_view(sku, feature):
+def product_view(sku, feature, coverage):
     st.title("Product & Feature Adoption")
+
+    # --- SKU catalog coverage: what of the catalog has ever been sold ------
+    catalog = int(coverage["catalog_skus"].sum())
+    sold = int(coverage["sold_skus"].sum())
+    unsold = int(coverage["unsold_skus"].sum())
+    c1, c2, c3 = st.columns(3)
+    c1.metric("SKUs in catalog", catalog)
+    c2.metric("Sold at least once", f"{sold}  ·  {sold / catalog:.0%}")
+    c3.metric("Unsold SKUs", f"{unsold}  ·  {unsold / catalog:.0%}")
+    st.caption("**Unsold SKUs** — catalog products no customer has ever bought. A packaging / "
+               "go-to-market gap, distinct from whether *sold* SKUs are adopted.")
+    cov = coverage.sort_values("unsold_skus", ascending=False)
+    fig = px.bar(cov, x=["sold_skus", "unsold_skus"], y="product_platform", orientation="h",
+                 title="Catalog coverage by platform (sold vs unsold SKUs)",
+                 color_discrete_map={"sold_skus": "#0B8F72", "unsold_skus": "#b71c1c"})
+    fig.update_layout(barmode="stack", yaxis_title=None, xaxis_title="SKUs",
+                      legend_title=None, yaxis={"categoryorder": "total ascending"})
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.subheader("Adoption of sold SKUs")
     latest_sku = sku[sku["month_start"] == latest_month(sku)]
 
     ranking = (latest_sku.groupby(["product_platform"])
@@ -418,14 +445,15 @@ def main():
     view = st.sidebar.radio(
         "View", ["Portfolio", "Live · Month-to-Date", "Customer Drill-Down", "Product & Feature"])
     st.sidebar.caption(f"Data source: {'BigQuery (live)' if source == 'bigquery' else 'CSV snapshot'}")
+    coverage = marts["mart_sku_coverage"]
     if view == "Portfolio":
-        portfolio_view(health, sku, feature)
+        portfolio_view(health, sku, feature, coverage)
     elif view == "Live · Month-to-Date":
         mtd_view(marts["mart_customer_health_mtd"])
     elif view == "Customer Drill-Down":
         customer_view(health, sku)
     else:
-        product_view(sku, feature)
+        product_view(sku, feature, coverage)
 
 
 main()
