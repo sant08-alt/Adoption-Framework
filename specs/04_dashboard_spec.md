@@ -27,6 +27,8 @@
   corresponding customer table below.
 - **Revenue impact row** (assumed pricing, never a CVRS input): Committed ARR,
   ARR-at-risk, expansion pipeline, avg ARR/customer.
+- **Unsold SKUs** snapshot card: catalog products never sold (respects the platform
+  filter).
 - CVRS distribution trend (stacked health-tier counts over the selected period) +
   health-tier donut for the as-of month.
 - **Customer detail tables** (anchored): Healthy, Shelfware, At Risk, and Expansion
@@ -54,6 +56,8 @@
     first adoption date and day-level time-to-first-value for that product.
 
 ### 3. Product & Feature (the product-GM view)
+- **SKU catalog coverage:** SKUs in catalog / sold / unsold, plus a sold-vs-unsold
+  stacked bar per platform (the packaging / go-to-market gap).
 - SKU adoption ranking: products by avg utilization and feature depth.
 - Feature adoption heatmap: adoption rate by feature (top/bottom 20) over months.
 - Time-to-adopt distribution per platform — which capabilities are hard to turn on.

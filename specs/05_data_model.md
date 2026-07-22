@@ -29,6 +29,7 @@ rules see `02_data_spec.md`; for layer/orchestration logic see `03_pipeline_spec
 | Mart | `mart_sku_adoption` | table | customer × product × month | 5,741 |
 | Mart | `mart_feature_adoption` | table | feature × month | 16,923 |
 | Mart | `mart_customer_health_mtd` | table | customer (as-of snapshot) | 100 |
+| Mart | `mart_sku_coverage` | table | product_platform | 5 |
 
 Staging is deliberately **views** (zero storage, always fresh); intermediates and
 marts are **tables** (materialized once per run, so the dashboard reads are cheap).

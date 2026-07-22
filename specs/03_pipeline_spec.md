@@ -63,6 +63,11 @@ One view per raw table: explicit casts, trimmed strings, deduplication on PK.
 
 Full column-level definitions for every table: see `05_data_model.md`.
 
+**`34_mart_sku_coverage`** — grain: product_platform
+- Catalog coverage: `catalog_skus`, `sold_skus`, `unsold_skus`, `unsold_pct`. A SKU
+  (product) is unsold if no customer holds an entitlement for it (182 of 500 in the
+  seeded data). A packaging / go-to-market signal, distinct from adoption of sold SKUs.
+
 **`33_mart_customer_health_mtd`** — grain: customer (single as-of snapshot)
 - In-flight, projected CVRS for the current month. `mtd_utilization` is pace-adjusted
   by `elapsed_fraction`; depth/breadth/consistency ride the last completed month
