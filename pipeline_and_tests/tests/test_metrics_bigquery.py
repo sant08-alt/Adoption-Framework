@@ -119,6 +119,19 @@ def test_overage_flagged_not_inflated(bq):
     assert (df["max_capped_util"] <= 1.0).all(), "capped utilization exceeded 1.0"
 
 
+def test_sku_coverage_totals_reconcile(bq):
+    df = query_df(bq, """
+        SELECT SUM(catalog_skus) AS catalog, SUM(sold_skus) AS sold,
+               SUM(unsold_skus) AS unsold,
+               COUNTIF(sold_skus + unsold_skus != catalog_skus) AS mismatch
+        FROM ${DATASET}.mart_sku_coverage
+    """)
+    assert df["catalog"][0] == 500, "catalog is not the full 500-SKU product table"
+    assert df["sold"][0] + df["unsold"][0] == df["catalog"][0], "sold + unsold != catalog"
+    assert df["mismatch"][0] == 0, "per-platform sold + unsold != catalog"
+    assert df["unsold"][0] > 0, "no unsold SKUs surfaced"
+
+
 def test_mtd_projected_cvrs_bounded(bq):
     df = query_df(bq, """
         SELECT COUNTIF(projected_cvrs < 0 OR projected_cvrs > 100) AS bad_cvrs,
