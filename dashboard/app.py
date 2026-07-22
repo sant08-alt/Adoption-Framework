@@ -70,9 +70,9 @@ def latest_month(df):
 KPI_CSS = """
 <style>
 .kpi{border:1px solid rgba(128,128,128,0.25);border-radius:10px;
-     padding:12px 16px;min-height:104px;}
+     padding:12px 16px;min-height:122px;}
 .kpi-label{font-size:0.80rem;opacity:0.70;margin-bottom:6px;}
-.kpi-value{font-size:1.85rem;font-weight:700;line-height:1.1;}
+.kpi-value{font-size:1.6rem;font-weight:700;line-height:1.15;}
 .kpi-sub{font-size:0.70rem;opacity:0.55;margin-top:6px;}
 a.kpi-link{text-decoration:none;color:inherit;display:block;}
 a.kpi-link[href]{cursor:pointer;}
