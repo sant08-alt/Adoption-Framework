@@ -119,6 +119,42 @@ def test_overage_flagged_not_inflated(bq):
     assert (df["max_capped_util"] <= 1.0).all(), "capped utilization exceeded 1.0"
 
 
+def test_mtd_projected_cvrs_bounded(bq):
+    df = query_df(bq, """
+        SELECT COUNTIF(projected_cvrs < 0 OR projected_cvrs > 100) AS bad_cvrs,
+               COUNTIF(mtd_utilization < 0 OR mtd_utilization > 1) AS bad_util
+        FROM ${DATASET}.mart_customer_health_mtd
+    """)
+    assert df["bad_cvrs"][0] == 0, "projected_cvrs out of [0,100]"
+    assert df["bad_util"][0] == 0, "mtd_utilization out of [0,1]"
+
+
+def test_mtd_surfaces_decelerating_accounts(bq):
+    # The whole point of the MTD view: accounts pacing well below their own
+    # baseline must be detectable now, not at month end.
+    df = query_df(bq, """
+        SELECT COUNTIF(momentum <= -0.30) AS decelerating,
+               COUNTIF(momentum IS NOT NULL) AS with_history
+        FROM ${DATASET}.mart_customer_health_mtd
+    """)
+    assert df["decelerating"][0] >= 3, "no decelerating accounts surfaced by momentum"
+    assert df["with_history"][0] > 0
+
+
+def test_mtd_pacing_is_not_artificially_low(bq):
+    # A steady account (|momentum| small) must project close to its last final
+    # score - proving the elapsed-fraction pacing works and mid-month isn't
+    # uniformly depressed.
+    df = query_df(bq, """
+        SELECT COUNTIF(ABS(projected_cvrs - last_final_cvrs) > 20) AS drifted,
+               COUNT(*) AS steady
+        FROM ${DATASET}.mart_customer_health_mtd
+        WHERE ABS(momentum) < 0.10 AND last_final_cvrs IS NOT NULL
+    """)
+    assert df["steady"][0] > 0, "no steady accounts to check"
+    assert df["drifted"][0] == 0, "steady accounts drifted far from their last final score"
+
+
 def test_time_metrics_never_negative(bq):
     # Value cannot be realized before a contract starts. Monthly consumption
     # grain vs daily start_date must not produce negative TTFV / time-to-adopt.

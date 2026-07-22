@@ -18,7 +18,8 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).parent.parent
 SQL_DIR = Path(__file__).parent / "sql"
 SNAPSHOT_DIR = ROOT / "dashboard" / "snapshots"
-MARTS = ["mart_customer_health", "mart_sku_adoption", "mart_feature_adoption"]
+MARTS = ["mart_customer_health", "mart_sku_adoption", "mart_feature_adoption",
+         "mart_customer_health_mtd"]
 
 
 def get_client_and_dataset():

@@ -44,6 +44,14 @@ SELECT
   CAST(consumed_units AS INT64) AS consumed_units
 FROM ${DATASET}.consumption;
 
+CREATE OR REPLACE VIEW ${DATASET}.stg_consumption_daily AS
+SELECT
+  CAST(cust_id AS STRING) AS cust_id,
+  CAST(entitlement_id AS STRING) AS entitlement_id,
+  CAST(usage_date AS DATE) AS usage_date,
+  CAST(consumed_units AS INT64) AS consumed_units
+FROM ${DATASET}.consumption_daily;
+
 CREATE OR REPLACE VIEW ${DATASET}.stg_product_adoption AS
 SELECT DISTINCT
   CAST(cust_id AS STRING) AS cust_id,

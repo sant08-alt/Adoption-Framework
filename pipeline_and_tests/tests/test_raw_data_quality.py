@@ -20,12 +20,13 @@ def tables():
     if not OUTPUT_DIR.exists():
         pytest.skip("No generated data. Run data_generation/generate_data.py first.")
     names = ["customers", "products", "features", "entitlements",
-             "consumption", "product_adoption", "feature_adoption",
+             "consumption", "consumption_daily", "product_adoption", "feature_adoption",
              "month_spine", "cohort_assignments"]
     loaded = {n: pd.read_csv(OUTPUT_DIR / f"{n}.csv") for n in names}
     for name, cols in {
         "entitlements": ["start_date", "end_date"],
         "consumption": ["usage_month"],
+        "consumption_daily": ["usage_date"],
         "product_adoption": ["first_adoption_date"],
         "feature_adoption": ["usage_month", "adoption_date"],
         "month_spine": ["month_start", "month_end"],
@@ -73,6 +74,22 @@ def test_shelfware_has_no_adoption(tables):
     shelf = cohort_custs(tables, "shelfware")
     offenders = set(tables["product_adoption"]["cust_id"]) & shelf
     assert not offenders, f"shelfware accounts with an adoption date: {offenders}"
+
+
+def test_daily_consumption_within_current_month_window(tables):
+    d = tables["consumption_daily"]
+    assert (d["usage_date"] >= pd.Timestamp("2026-07-01")).all(), "daily row before current month"
+    assert (d["usage_date"] <= pd.Timestamp("2026-07-15")).all(), "daily row after the as-of date"
+    assert (d["consumed_units"] >= 0).all()
+    # No daily usage before the entitlement's own start.
+    merged = d.merge(tables["entitlements"][["entitlement_id", "start_date"]], on="entitlement_id")
+    assert (merged["usage_date"] >= merged["start_date"]).all(), "daily usage before entitlement start"
+
+
+def test_daily_consumption_excludes_shelfware(tables):
+    shelf = cohort_custs(tables, "shelfware")
+    offenders = set(tables["consumption_daily"]["cust_id"]) & shelf
+    assert not offenders, f"shelfware accounts with daily consumption: {offenders}"
 
 
 def test_foreign_keys_resolve(tables):
