@@ -20,6 +20,7 @@ OUTPUT_DIR = Path(__file__).parent / "output"
 DATE_COLUMNS = {
     "entitlements": ["start_date", "end_date"],
     "consumption": ["usage_month"],
+    "consumption_daily": ["usage_date"],
     "product_adoption": ["first_adoption_date"],
     "feature_adoption": ["usage_month", "adoption_date"],
     "month_spine": ["month_start", "month_end"],

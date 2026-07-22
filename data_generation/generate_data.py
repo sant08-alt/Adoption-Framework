@@ -23,6 +23,12 @@ N_PRODUCTS = 500
 N_ENTITLEMENTS_TARGET = 500
 MONTHS = pd.date_range("2025-07-01", periods=12, freq="MS").date
 
+# In-flight current month for the month-to-date (projected) view. Fixed and
+# seeded so the demo is deterministic; in production this is simply "today".
+CURRENT_MONTH_START = date(2026, 7, 1)
+AS_OF_DATE = date(2026, 7, 15)
+TRAILING_MONTHS = [date(2026, 4, 1), date(2026, 5, 1), date(2026, 6, 1)]
+
 COHORT_SIZES = {"spike_drop": 5, "shelfware": 10, "overage": 15, "expansion": 9}
 
 PLATFORMS = [
@@ -276,6 +282,56 @@ def build_consumption_and_adoption(entitlements: pd.DataFrame, cohorts: pd.DataF
     return consumption, product_adoption
 
 
+def build_daily_consumption(entitlements: pd.DataFrame, consumption: pd.DataFrame,
+                            cohorts: pd.DataFrame) -> pd.DataFrame:
+    """Daily consumption for the in-flight current month (up to AS_OF_DATE).
+
+    Each entitlement's daily pace is anchored to its own trailing-3-month daily
+    rate, then scaled by a per-customer "mover" factor so momentum (this month's
+    pace vs the account's own baseline) is a real signal: ~10% of active
+    customers are decelerating this month, ~5% accelerating, the rest steady.
+    This is what powers the month-to-date / projected CVRS view.
+    """
+    cohort_of = dict(zip(cohorts["cust_id"], cohorts["cohort"]))
+    trailing = consumption[consumption["usage_month"].isin(TRAILING_MONTHS)]
+    trail_by_ent = trailing.groupby("entitlement_id")["consumed_units"].sum().to_dict()
+
+    active = entitlements[
+        (entitlements["start_date"] <= month_end(CURRENT_MONTH_START))
+        & (entitlements["end_date"] >= CURRENT_MONTH_START)
+    ]
+    active = active[active["cust_id"].map(cohort_of) != "shelfware"]
+
+    # Assign each active customer a current-month momentum class.
+    mover_factor: dict[str, float] = {}
+    for cust_id in sorted(active["cust_id"].unique()):
+        r = random.random()
+        if r < 0.10:
+            mover_factor[cust_id] = random.uniform(0.20, 0.50)   # decelerating
+        elif r < 0.15:
+            mover_factor[cust_id] = random.uniform(1.30, 1.60)   # accelerating
+        else:
+            mover_factor[cust_id] = random.uniform(0.90, 1.10)   # steady
+
+    as_of_day = AS_OF_DATE.day
+    rows = []
+    for _, ent in active.iterrows():
+        daily_target = (trail_by_ent.get(ent["entitlement_id"], 0) / 91.0) * mover_factor[ent["cust_id"]]
+        if daily_target <= 0:
+            continue
+        for day in range(1, as_of_day + 1):
+            d = date(CURRENT_MONTH_START.year, CURRENT_MONTH_START.month, day)
+            if d < ent["start_date"]:
+                continue
+            rows.append({
+                "cust_id": ent["cust_id"],
+                "entitlement_id": ent["entitlement_id"],
+                "usage_date": d,
+                "consumed_units": int(max(0, daily_target * random.uniform(0.80, 1.20))),
+            })
+    return pd.DataFrame(rows)
+
+
 def build_feature_adoption(entitlements: pd.DataFrame, features: pd.DataFrame,
                            cohorts: pd.DataFrame) -> pd.DataFrame:
     cohort_of = dict(zip(cohorts["cust_id"], cohorts["cohort"]))
@@ -332,6 +388,7 @@ def main() -> None:
     cohorts = assign_cohorts(customers)
     entitlements = build_entitlements(customers, products, cohorts)
     consumption, product_adoption = build_consumption_and_adoption(entitlements, cohorts)
+    consumption_daily = build_daily_consumption(entitlements, consumption, cohorts)
     feature_adoption = build_feature_adoption(entitlements, features, cohorts)
     month_spine = pd.DataFrame({
         "month_start": list(MONTHS),
@@ -344,6 +401,7 @@ def main() -> None:
         "features": features,
         "entitlements": entitlements,
         "consumption": consumption,
+        "consumption_daily": consumption_daily,
         "product_adoption": product_adoption,
         "feature_adoption": feature_adoption,
         "month_spine": month_spine,
