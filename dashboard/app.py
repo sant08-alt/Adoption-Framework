@@ -18,7 +18,14 @@ from dotenv import load_dotenv
 
 ROOT = Path(__file__).parent.parent
 SNAPSHOT_DIR = Path(__file__).parent / "snapshots"
-MARTS = ["mart_customer_health", "mart_sku_adoption", "mart_feature_adoption"]
+MARTS = ["mart_customer_health", "mart_sku_adoption", "mart_feature_adoption",
+         "mart_customer_health_mtd"]
+MART_DATE_COLS = {
+    "mart_customer_health": ["month_start"],
+    "mart_sku_adoption": ["month_start"],
+    "mart_feature_adoption": ["month_start"],
+    "mart_customer_health_mtd": ["as_of_date"],
+}
 
 TIER_COLORS = {
     "Healthy": "#2e7d32",
@@ -48,7 +55,8 @@ def load_marts():
         except Exception:  # noqa: BLE001 - fall through to snapshots
             pass
     if all((SNAPSHOT_DIR / f"{m}.csv").exists() for m in MARTS):
-        marts = {m: pd.read_csv(SNAPSHOT_DIR / f"{m}.csv", parse_dates=["month_start"])
+        marts = {m: pd.read_csv(SNAPSHOT_DIR / f"{m}.csv",
+                                parse_dates=MART_DATE_COLS.get(m, []))
                  for m in MARTS}
         return marts, "snapshot"
     return None, "none"
@@ -344,6 +352,51 @@ def product_view(sku, feature):
     st.plotly_chart(fig, use_container_width=True)
 
 
+def mtd_view(mtd):
+    st.title("Live · Month-to-Date")
+    as_of = pd.to_datetime(mtd["as_of_date"].iloc[0])
+    pct = int(mtd["pct_month_elapsed"].iloc[0])
+    st.info(
+        f"**Projected CVRS — as of {as_of:%b %d, %Y} · {pct}% of month elapsed.** "
+        "Pace-adjusted and provisional; the monthly CVRS remains the system of record. "
+        "**Not used for tier assignment or compensation.**"
+    )
+
+    decel = mtd[mtd["momentum"] < -0.30]
+    accel = mtd[mtd["momentum"] > 0.30]
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("Projected avg CVRS", f"{mtd['projected_cvrs'].mean():.0f}")
+    k2.metric("Decelerating this month", len(decel),
+              help="Pacing >30% below the account's own trailing daily rate")
+    k3.metric("Accelerating", len(accel))
+    k4.metric("Projected < 40", int((mtd["projected_cvrs"] < 40).sum()),
+              help="On track to finish the month in At-Risk territory")
+
+    st.subheader("Decelerating accounts — the early-warning call list")
+    st.caption("Sorted by how far this month's pace has fallen below the account's own baseline. "
+               "These look fine in last month's final score but are cratering **now**.")
+    call = mtd[mtd["momentum"].notna()].sort_values("momentum").head(15).copy()
+    call["delta_vs_last"] = (call["projected_cvrs"] - call["last_final_cvrs"]).round(1)
+    show = call[["cust_name", "region", "customer_segment", "momentum",
+                 "mtd_utilization", "projected_cvrs", "last_final_cvrs",
+                 "delta_vs_last", "last_tier"]].copy()
+    show["momentum"] = show["momentum"].map("{:+.0%}".format)
+    show["mtd_utilization"] = show["mtd_utilization"].map("{:.0%}".format)
+    st.dataframe(show, use_container_width=True, hide_index=True)
+
+    st.subheader("Movers: projected vs last month's final CVRS")
+    st.caption("Points below the line are trending down this month; above, up.")
+    fig = px.scatter(mtd, x="last_final_cvrs", y="projected_cvrs", color="momentum",
+                     color_continuous_scale="RdYlGn", range_color=[-0.8, 0.8],
+                     hover_name="cust_name", range_x=[0, 100], range_y=[0, 100])
+    fig.add_shape(type="line", x0=0, y0=0, x1=100, y1=100,
+                  line={"dash": "dot", "color": "#888", "width": 1})
+    fig.update_layout(xaxis_title="Last month final CVRS",
+                      yaxis_title="Projected CVRS (this month)",
+                      coloraxis_colorbar={"title": "Momentum"})
+    st.plotly_chart(fig, use_container_width=True)
+
+
 def main():
     marts, source = load_marts()
     if marts is None:
@@ -362,10 +415,13 @@ def main():
     for df in (health, sku, feature):
         df["month_start"] = pd.to_datetime(df["month_start"])
 
-    view = st.sidebar.radio("View", ["Portfolio", "Customer Drill-Down", "Product & Feature"])
+    view = st.sidebar.radio(
+        "View", ["Portfolio", "Live · Month-to-Date", "Customer Drill-Down", "Product & Feature"])
     st.sidebar.caption(f"Data source: {'BigQuery (live)' if source == 'bigquery' else 'CSV snapshot'}")
     if view == "Portfolio":
         portfolio_view(health, sku, feature)
+    elif view == "Live · Month-to-Date":
+        mtd_view(marts["mart_customer_health_mtd"])
     elif view == "Customer Drill-Down":
         customer_view(health, sku)
     else:
