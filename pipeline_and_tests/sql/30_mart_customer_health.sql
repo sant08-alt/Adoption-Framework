@@ -113,6 +113,9 @@ scored AS (
     END AS consistency
   FROM base
 ),
+-- NOTE: this CTE must NOT be named `cvrs`. It emits a column also called `cvrs`,
+-- and BigQuery would then resolve AVG(cvrs) below to the CTE's row-struct instead
+-- of the column (see specs/06_hard_truths.md #1).
 cvrs_calc AS (
   SELECT
     *,
