@@ -22,6 +22,7 @@ in [specs/01_framework_spec.md](specs/01_framework_spec.md).
 |------|----------|
 | [specs/](specs/) | Product & technical specifications (written before the code) |
 | [specs/05_data_model.md](specs/05_data_model.md) | Column-level data dictionary for every raw, intermediate, and mart table |
+| [specs/06_hard_truths.md](specs/06_hard_truths.md) | Decisions, defects found and fixed, and known limitations — with the guard tests |
 | [data_generation/](data_generation/) | Synthetic dataset generator + BigQuery loader |
 | [pipeline_and_tests/sql/](pipeline_and_tests/sql/) | Layered dbt-style SQL (staging → intermediate → marts) |
 | [pipeline_and_tests/tests/](pipeline_and_tests/tests/) | Automated data-quality + metric-correctness tests (pytest) |
